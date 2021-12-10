@@ -1,24 +1,36 @@
 import { Button } from '@chakra-ui/react';
-import { Form, Formik, useFormik } from 'formik';
+import { Form, Formik, FormikHelpers } from 'formik';
+import { useRouter } from 'next/router';
 import { InputField } from '../components/InputField';
 import { EVariant, Wrapper } from '../components/Wrapper';
 import {
   useRegisterMutation,
   UsernamePasswordInput,
 } from '../generated/graphql';
+import { toErrorMap } from '../utils/toErrorMap';
 
 type TRegisterProps = {};
 
 const Register = ({}: TRegisterProps) => {
   const [{}, register] = useRegisterMutation();
+  const router = useRouter();
 
   const onRegisterClick =
     () =>
     async (
       values: UsernamePasswordInput,
-      { setErrors }: ReturnType<typeof useFormik>
+      { setErrors }: FormikHelpers<UsernamePasswordInput>
     ) => {
       const res = await register(values);
+      const serverValidationErrors = res.data?.register.errors;
+      const user = res.data?.register.user;
+
+      if (serverValidationErrors) {
+        setErrors(toErrorMap(serverValidationErrors));
+      } else if (user) {
+        router.push('/');
+      }
+      return res;
     };
 
   return (
