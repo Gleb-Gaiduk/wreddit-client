@@ -103,7 +103,7 @@ export type LoginMutationVariables = Exact<{
 }>;
 
 
-export type LoginMutation = { __typename?: 'Mutation', login: { __typename?: 'UserResponse', errors?: Array<{ __typename?: 'FieldError', field: string, message: string }> | null | undefined, user?: { __typename?: 'User', username: string, updatedAt: any, createdAt: any } | null | undefined } };
+export type LoginMutation = { __typename?: 'Mutation', login: { __typename?: 'UserResponse', errors?: Array<{ __typename?: 'FieldError', field: string, message: string }> | null | undefined, user?: { __typename?: 'User', id: number, username: string, updatedAt: any, createdAt: any } | null | undefined } };
 
 export type RegisterMutationVariables = Exact<{
   username: Scalars['String'];
@@ -127,6 +127,7 @@ export const LoginDocument = gql`
       message
     }
     user {
+      id
       username
       updatedAt
       createdAt

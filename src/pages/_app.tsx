@@ -15,7 +15,10 @@ function updateQueryWithTypes<Result, Query>(
   result: any,
   fn: (r: Result, q: Query) => Query
 ) {
-  return cache.updateQuery(qi, data => fn(result, data as any) as any);
+  return cache.updateQuery(
+    qi,
+    data => fn(result as Result, data as any) as any
+  );
 }
 
 const client = createClient({
@@ -29,16 +32,17 @@ const client = createClient({
       // We need to update cached auth query result after calling login mutation
       updates: {
         Mutation: {
-          login: (_result, args, cache, info) => {
+          login: (result, args, cache, info) => {
             updateQueryWithTypes<LoginMutation, MeQuery>(
               cache,
               { query: MeDocument },
-              _result,
-              (result, query) => {
-                if (result.login.errors) return query;
+              result,
+              (_result, _cache) => {
+                console.log(_result, result);
+                if (_result.login.errors) return _cache;
                 return {
                   // Allowed direct object mutation
-                  auth: result.login.user,
+                  auth: _result.login.user,
                 };
               }
             );
