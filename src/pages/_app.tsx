@@ -1,5 +1,6 @@
 import { ChakraProvider, ColorModeProvider } from '@chakra-ui/react';
 import { Cache, cacheExchange, QueryInput } from '@urql/exchange-graphcache';
+import { AppProps } from 'next/dist/shared/lib/router/router';
 import { createClient, dedupExchange, fetchExchange, Provider } from 'urql';
 import {
   LoginMutation,
@@ -48,18 +49,25 @@ const client = createClient({
             );
           },
 
-          register: (_result, args, cache, info) => {
+          register: (result, args, cache, info) => {
             updateQueryWithTypes<RegisterMutation, MeQuery>(
               cache,
               { query: MeDocument },
-              _result,
-              (result, query) => {
-                if (result.register.errors) return query;
+              result,
+              (_result, _cache) => {
+                if (_result.register.errors) return _cache;
                 return {
-                  auth: result.register.user,
+                  auth: _result.register.user,
                 };
               }
             );
+          },
+
+          logout: (result, args, cache, info) => {
+            // Update cached auth me query with null
+            updateQueryWithTypes(cache, { query: MeDocument }, result, () => ({
+              auth: null,
+            }));
           },
         },
       },
@@ -68,7 +76,13 @@ const client = createClient({
   ],
 });
 
-function MyApp({ Component, pageProps }) {
+function MyApp({
+  Component,
+  pageProps,
+}: {
+  Component: any;
+  pageProps: AppProps;
+}) {
   return (
     <Provider value={client}>
       <ChakraProvider resetCSS theme={theme}>
