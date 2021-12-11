@@ -1,6 +1,5 @@
 query Me {
   auth {
-    id
-    username
+    ...RegularUser
   }
 }
