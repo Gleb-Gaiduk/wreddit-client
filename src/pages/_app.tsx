@@ -1,12 +1,67 @@
 import { ChakraProvider, ColorModeProvider } from '@chakra-ui/react';
-import { createClient, Provider } from 'urql';
+import { Cache, cacheExchange, QueryInput } from '@urql/exchange-graphcache';
+import { createClient, dedupExchange, fetchExchange, Provider } from 'urql';
+import {
+  LoginMutation,
+  MeDocument,
+  MeQuery,
+  RegisterMutation,
+} from '../generated/graphql';
 import theme from '../theme';
+
+function updateQueryWithTypes<Result, Query>(
+  cache: Cache,
+  qi: QueryInput,
+  result: any,
+  fn: (r: Result, q: Query) => Query
+) {
+  return cache.updateQuery(qi, data => fn(result, data as any) as any);
+}
 
 const client = createClient({
   url: 'http://localhost:4000/graphql',
   fetchOptions: {
     credentials: 'include',
   },
+  exchanges: [
+    dedupExchange,
+    cacheExchange({
+      // We need to update cached auth query result after calling login mutation
+      updates: {
+        Mutation: {
+          login: (_result, args, cache, info) => {
+            updateQueryWithTypes<LoginMutation, MeQuery>(
+              cache,
+              { query: MeDocument },
+              _result,
+              (result, query) => {
+                if (result.login.errors) return query;
+                return {
+                  // Allowed direct object mutation
+                  auth: result.login.user,
+                };
+              }
+            );
+          },
+
+          register: (_result, args, cache, info) => {
+            updateQueryWithTypes<RegisterMutation, MeQuery>(
+              cache,
+              { query: MeDocument },
+              _result,
+              (result, query) => {
+                if (result.register.errors) return query;
+                return {
+                  auth: result.register.user,
+                };
+              }
+            );
+          },
+        },
+      },
+    }),
+    fetchExchange,
+  ],
 });
 
 function MyApp({ Component, pageProps }) {
