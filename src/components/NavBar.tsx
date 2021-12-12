@@ -2,11 +2,13 @@ import { Box, Button, Flex, Link } from '@chakra-ui/react';
 import NextLink from 'next/link';
 import React, { ReactNode } from 'react';
 import { useLogoutMutation, useMeQuery } from '../generated/graphql';
+import { isServer } from '../utils/isServer';
 
 type TNavBarProps = {};
 
 export const NavBar = ({}: TNavBarProps) => {
-  const [{ fetching, data }] = useMeQuery();
+  // Request auth me on the client only but not on SSR
+  const [{ fetching, data }] = useMeQuery({ pause: isServer() });
   const [{ fetching: logoutFetching }, logout] = useLogoutMutation();
 
   const onLogoutClick = () => () => {
