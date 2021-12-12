@@ -1,5 +1,6 @@
 import { Button } from '@chakra-ui/react';
 import { Form, Formik, FormikHelpers } from 'formik';
+import { withUrqlClient } from 'next-urql';
 import { useRouter } from 'next/router';
 import { InputField } from '../components/InputField';
 import { EVariant, Wrapper } from '../components/Wrapper';
@@ -7,6 +8,7 @@ import {
   useRegisterMutation,
   UsernamePasswordInput,
 } from '../generated/graphql';
+import { createUrqlClient } from '../utils/createUrqlClient';
 import { toErrorMap } from '../utils/toErrorMap';
 
 type TRegisterProps = {};
@@ -66,4 +68,4 @@ const Register = ({}: TRegisterProps) => {
   );
 };
 
-export default Register;
+export default withUrqlClient(createUrqlClient)(Register);

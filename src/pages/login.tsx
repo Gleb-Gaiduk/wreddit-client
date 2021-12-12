@@ -1,9 +1,11 @@
 import { Button } from '@chakra-ui/react';
 import { Form, Formik, FormikHelpers } from 'formik';
+import { withUrqlClient } from 'next-urql';
 import { useRouter } from 'next/router';
 import { InputField } from '../components/InputField';
 import { EVariant, Wrapper } from '../components/Wrapper';
 import { useLoginMutation, UsernamePasswordInput } from '../generated/graphql';
+import { createUrqlClient } from '../utils/createUrqlClient';
 import { toErrorMap } from '../utils/toErrorMap';
 
 const Login = ({}) => {
@@ -61,4 +63,5 @@ const Login = ({}) => {
   );
 };
 
-export default Login;
+// SSR is turned off here, withUrqlClient HOC allows mutations
+export default withUrqlClient(createUrqlClient)(Login);
