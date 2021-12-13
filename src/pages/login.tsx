@@ -4,7 +4,7 @@ import { withUrqlClient } from 'next-urql';
 import { useRouter } from 'next/router';
 import { InputField } from '../components/InputField';
 import { EVariant, Wrapper } from '../components/Wrapper';
-import { useLoginMutation, UsernamePasswordInput } from '../generated/graphql';
+import { MutationLoginArgs, useLoginMutation } from '../generated/graphql';
 import { createUrqlClient } from '../utils/createUrqlClient';
 import { toErrorMap } from '../utils/toErrorMap';
 
@@ -15,10 +15,10 @@ const Login = ({}) => {
   const onRegisterClick =
     () =>
     async (
-      values: UsernamePasswordInput,
-      { setErrors }: FormikHelpers<UsernamePasswordInput>
+      values: MutationLoginArgs,
+      { setErrors }: FormikHelpers<MutationLoginArgs>
     ) => {
-      const res = await login({ options: values });
+      const res = await login(values);
       const serverValidationErrors = res.data?.login.errors;
       const user = res.data?.login.user;
 
@@ -33,15 +33,15 @@ const Login = ({}) => {
   return (
     <Wrapper variant={EVariant.SMALL}>
       <Formik
-        initialValues={{ username: '', password: '' }}
+        initialValues={{ usernameOrEmail: '', password: '' }}
         onSubmit={onRegisterClick()}
       >
         {({ values, handleChange, isSubmitting }) => (
           <Form>
             <InputField
-              name='username'
-              placeholder='User name'
-              label='User name'
+              name='usernameOrEmail'
+              placeholder='User name or email'
+              label='User name or email'
             />
             <InputField
               name='password'
