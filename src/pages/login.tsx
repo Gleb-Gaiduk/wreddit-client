@@ -1,6 +1,7 @@
-import { Button } from '@chakra-ui/react';
+import { Box, Button, Link } from '@chakra-ui/react';
 import { Form, Formik, FormikHelpers } from 'formik';
 import { withUrqlClient } from 'next-urql';
+import NextLink from 'next/link';
 import { useRouter } from 'next/router';
 import { InputField } from '../components/InputField';
 import { EVariant, Wrapper } from '../components/Wrapper';
@@ -38,24 +39,28 @@ const Login = ({}) => {
       >
         {({ values, handleChange, isSubmitting }) => (
           <Form>
-            <InputField
-              name='usernameOrEmail'
-              placeholder='User name or email'
-              label='User name or email'
-            />
-            <InputField
-              name='password'
-              placeholder='Password'
-              label='Password'
-            />
-            <Button
-              type='submit'
-              mt={4}
-              colorScheme='teal'
-              isLoading={isSubmitting}
-            >
-              Login
-            </Button>
+            <Box mb={2}>
+              <InputField
+                name='usernameOrEmail'
+                placeholder='User name or email'
+                label='User name or email'
+              />
+            </Box>
+            <Box mb={2}>
+              <InputField
+                name='password'
+                placeholder='Password'
+                label='Password'
+              />
+            </Box>
+            <NextLink href='/forgot-password'>
+              <Link>Forgot password?</Link>
+            </NextLink>
+            <Box mt={4}>
+              <Button type='submit' colorScheme='teal' isLoading={isSubmitting}>
+                Login
+              </Button>
+            </Box>
           </Form>
         )}
       </Formik>
