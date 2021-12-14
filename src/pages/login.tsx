@@ -26,7 +26,11 @@ const Login = ({}) => {
       if (serverValidationErrors) {
         setErrors(toErrorMap(serverValidationErrors));
       } else if (user) {
-        router.push('/');
+        if (typeof router.query.next === 'string') {
+          router.push(router.query.next);
+        } else {
+          router.push('/');
+        }
       }
       return res;
     };
