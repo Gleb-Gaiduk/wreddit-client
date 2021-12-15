@@ -1,16 +1,39 @@
-import { Box, Heading, Link, Stack, Text } from '@chakra-ui/react';
+import {
+  Box,
+  Button,
+  Flex,
+  Heading,
+  Link,
+  Stack,
+  Text,
+} from '@chakra-ui/react';
 import { withUrqlClient } from 'next-urql';
 import NextLink from 'next/link';
+import { MouseEventHandler, useState } from 'react';
 import { Layout } from '../components/Layout';
 import { usePostsQuery } from '../generated/graphql';
 import { createUrqlClient } from '../utils/createUrqlClient';
 
 const Index = () => {
-  const [{ data }] = usePostsQuery({
-    variables: {
-      limit: 10,
-    },
+  const [paginationVariables, setPaginationVariables] = useState<{
+    limit: number;
+    cursor: string | null | undefined;
+  }>({ limit: 10, cursor: null });
+
+  const [{ data, fetching }] = usePostsQuery({
+    variables: paginationVariables,
   });
+
+  const onLoadMoreClick: MouseEventHandler<HTMLButtonElement> = (): void => {
+    setPaginationVariables({
+      limit: paginationVariables.limit,
+      cursor: data?.posts.posts[data.posts.posts.length - 1].createdAt,
+    });
+  };
+
+  if (!fetching && !data) {
+    return <div>You have no posts created</div>;
+  }
 
   return (
     <Layout>
@@ -19,14 +42,29 @@ const Index = () => {
       </Link>
 
       {data ? (
-        <Stack spacing={8}>
-          {data.posts.map(post => (
-            <Box key={post.id} p={5} shadow='md' borderWidth='1px'>
-              <Heading fontSize='xl'>{post.title}</Heading>
-              <Text mt={4}>{post.textSnippet}</Text>
-            </Box>
-          ))}
-        </Stack>
+        <>
+          <Stack spacing={8}>
+            {data.posts.posts.map(post => (
+              <Box key={post.id} p={5} shadow='md' borderWidth='1px'>
+                <Heading fontSize='xl'>{post.title}</Heading>
+                <Text mt={4}>{post.textSnippet}</Text>
+              </Box>
+            ))}
+          </Stack>
+
+          {data.posts.hasMore ? (
+            <Flex>
+              <Button
+                onClick={onLoadMoreClick}
+                isLoading={fetching}
+                m='auto'
+                my={6}
+              >
+                Load more
+              </Button>
+            </Flex>
+          ) : null}
+        </>
       ) : (
         <div>Loading...</div>
       )}

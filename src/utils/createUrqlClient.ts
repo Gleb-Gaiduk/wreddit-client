@@ -1,6 +1,12 @@
-import { cacheExchange } from '@urql/exchange-graphcache';
+import { cacheExchange, Resolver } from '@urql/exchange-graphcache';
+import { FieldsOnCorrectTypeRule } from 'graphql';
 import Router from 'next/router';
-import { dedupExchange, Exchange, fetchExchange } from 'urql';
+import {
+  dedupExchange,
+  Exchange,
+  fetchExchange,
+  stringifyVariables,
+} from 'urql';
 import { pipe, tap } from 'wonka';
 import {
   LoginMutation,
@@ -24,6 +30,42 @@ const errorExchange: Exchange =
     );
   };
 
+// Understand implementation: 7.22.00
+const cursorPagination = (): Resolver => {
+  return (_parent, fieldArgs, cache, info) => {
+    const { parentKey: entityKey, fieldName } = info;
+    const allFields = cache.inspectFields(entityKey);
+    const fieldInfos = allFields.filter(info => info.fieldName === fieldName);
+    const size = fieldInfos.length;
+
+    if (size === 0) return undefined;
+
+    const fieldKey = `${fieldName}(${stringifyVariables(
+      FieldsOnCorrectTypeRule
+    )})`;
+
+    const isInCache = cache.resolve(
+      cache.resolve(entityKey, fieldKey) as string,
+      'posts'
+    );
+    info.partial = !isInCache;
+
+    let hasMore = true;
+
+    const results: string[] = [];
+    fieldInfos.forEach(fi => {
+      const key = cache.resolve(entityKey, fi.fieldKey) as string;
+      const data = cache.resolve(key, 'posts') as string[];
+      const _hasMore = Boolean(cache.resolve(key, 'hasMore'));
+
+      if (!_hasMore) hasMore = _hasMore;
+      results.push(...data);
+    });
+
+    return { __typename: 'PaginatedPosts', hasMore, posts: results };
+  };
+};
+
 export const createUrqlClient = (ssrExchange: any) => ({
   url: 'http://localhost:4000/graphql',
   fetchOptions: {
@@ -32,6 +74,14 @@ export const createUrqlClient = (ssrExchange: any) => ({
   exchanges: [
     dedupExchange,
     cacheExchange({
+      keys: {
+        PaginatedPosts: () => null,
+      },
+      resolvers: {
+        Query: {
+          posts: cursorPagination(),
+        },
+      },
       // We need to update cached auth query result after calling login mutation
       updates: {
         Mutation: {
