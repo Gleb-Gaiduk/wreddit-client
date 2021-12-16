@@ -82,9 +82,19 @@ export const createUrqlClient = (ssrExchange: any) => ({
           posts: cursorPagination(),
         },
       },
-      // We need to update cached auth query result after calling login mutation
       updates: {
         Mutation: {
+          // 9.00.00 | Invalidate posts cache doing its refetch after creating new posts
+          createPost: (result, args, cache, info) => {
+            const allFields = cache.inspectFields('Query');
+            const fieldInfos = allFields.filter(
+              info => info.fieldName === 'posts'
+            );
+            fieldInfos.forEach(postField =>
+              cache.invalidate('Query', 'posts', postField.arguments || {})
+            );
+          },
+          // We need to update cached auth query result after calling login mutation
           login: (result, args, cache, info) => {
             updateQueryWithTypes<LoginMutation, MeQuery>(
               cache,
