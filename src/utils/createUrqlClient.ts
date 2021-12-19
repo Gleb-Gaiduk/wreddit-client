@@ -1,3 +1,4 @@
+import { gql } from '@urql/core';
 import { cacheExchange, Resolver } from '@urql/exchange-graphcache';
 import { FieldsOnCorrectTypeRule } from 'graphql';
 import Router from 'next/router';
@@ -14,6 +15,8 @@ import {
   MeQuery,
   RegisterMutation,
 } from '../generated/graphql';
+import { VoteMutationVariables } from './../generated/graphql';
+import { isServer } from './isServer';
 import { updateQueryWithTypes } from './updateQueryWithTypes';
 
 // Global error handler
@@ -66,77 +69,116 @@ const cursorPagination = (): Resolver => {
   };
 };
 
-export const createUrqlClient = (ssrExchange: any) => ({
-  url: 'http://localhost:4000/graphql',
-  fetchOptions: {
-    credentials: 'include' as const,
-  },
-  exchanges: [
-    dedupExchange,
-    cacheExchange({
-      keys: {
-        PaginatedPosts: () => null,
-      },
-      resolvers: {
-        Query: {
-          posts: cursorPagination(),
+export const createUrqlClient = (ssrExchange: any, ctx: any) => {
+  let cookie = '';
+  if (isServer()) cookie = ctx.req.headers.cookie;
+
+  return {
+    url: 'http://localhost:4000/graphql',
+    fetchOptions: {
+      credentials: 'include' as const,
+      headers: cookie ? { cookie } : undefined,
+    },
+    exchanges: [
+      dedupExchange,
+      cacheExchange({
+        keys: {
+          PaginatedPosts: () => null,
         },
-      },
-      updates: {
-        Mutation: {
-          // 9.00.00 | Invalidate posts cache doing its refetch after creating new posts
-          createPost: (result, args, cache, info) => {
-            const allFields = cache.inspectFields('Query');
-            const fieldInfos = allFields.filter(
-              info => info.fieldName === 'posts'
-            );
-            fieldInfos.forEach(postField =>
-              cache.invalidate('Query', 'posts', postField.arguments || {})
-            );
-          },
-          // We need to update cached auth query result after calling login mutation
-          login: (result, args, cache, info) => {
-            updateQueryWithTypes<LoginMutation, MeQuery>(
-              cache,
-              { query: MeDocument },
-              result,
-              (_result, _cache) => {
-                console.log(_result, result);
-                if (_result.login.errors) return _cache;
-                return {
-                  // Allowed direct object mutation
-                  auth: _result.login.user,
-                };
-              }
-            );
-          },
-
-          register: (result, args, cache, info) => {
-            updateQueryWithTypes<RegisterMutation, MeQuery>(
-              cache,
-              { query: MeDocument },
-              result,
-              (_result, _cache) => {
-                if (_result.register.errors) return _cache;
-                return {
-                  auth: _result.register.user,
-                };
-              }
-            );
-          },
-
-          logout: (result, args, cache, info) => {
-            // Update cached auth me query with null
-            updateQueryWithTypes(cache, { query: MeDocument }, result, () => ({
-              auth: null,
-            }));
+        resolvers: {
+          Query: {
+            posts: cursorPagination(),
           },
         },
-      },
-    }),
-    // Global error handler
-    errorExchange,
-    ssrExchange,
-    fetchExchange,
-  ],
-});
+        updates: {
+          Mutation: {
+            vote: (result, args, cache, info) => {
+              const { postId, value } = args as VoteMutationVariables;
+
+              const data = cache.readFragment(
+                gql`
+                  fragment _ on Post {
+                    id
+                    points
+                    voteStatus
+                  }
+                `,
+                { id: postId }
+              );
+
+              if (data) {
+                const newPoints = data.points + value;
+
+                cache.writeFragment(
+                  gql`
+                    fragment __ on Post {
+                      points
+                    }
+                  `,
+                  { id: postId, points: newPoints }
+                );
+              }
+            },
+
+            // 9.00.00 | Invalidate posts cache doing its refetch after creating new posts
+            createPost: (result, args, cache, info) => {
+              const allFields = cache.inspectFields('Query');
+              const fieldInfos = allFields.filter(
+                info => info.fieldName === 'posts'
+              );
+              fieldInfos.forEach(postField =>
+                cache.invalidate('Query', 'posts', postField.arguments || {})
+              );
+            },
+            // We need to update cached auth query result after calling login mutation
+            login: (result, args, cache, info) => {
+              updateQueryWithTypes<LoginMutation, MeQuery>(
+                cache,
+                { query: MeDocument },
+                result,
+                (_result, _cache) => {
+                  console.log(_result, result);
+                  if (_result.login.errors) return _cache;
+                  return {
+                    // Allowed direct object mutation
+                    auth: _result.login.user,
+                  };
+                }
+              );
+            },
+
+            register: (result, args, cache, info) => {
+              updateQueryWithTypes<RegisterMutation, MeQuery>(
+                cache,
+                { query: MeDocument },
+                result,
+                (_result, _cache) => {
+                  if (_result.register.errors) return _cache;
+                  return {
+                    auth: _result.register.user,
+                  };
+                }
+              );
+            },
+
+            logout: (result, args, cache, info) => {
+              // Update cached auth me query with null
+              updateQueryWithTypes(
+                cache,
+                { query: MeDocument },
+                result,
+                () => ({
+                  auth: null,
+                })
+              );
+            },
+          },
+        },
+      }),
+      // Global error handler
+      errorExchange,
+      ssrExchange,
+      fetchExchange,
+    ],
+  };
+};
